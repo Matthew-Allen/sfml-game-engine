@@ -6,41 +6,28 @@
 #define OBJECT_ARRAY_SIZE 150
 #define MESSAGE_QUEUE_SIZE 150
 
+enum message_type_t {NONE,INPUT, LOGIC, PHYSICS, GRAPHICS};
+
 class GameObject;
-
-class Component
-{
-private:
-	std::string componentType;
-
-public:
-
-	void update(GameObject &parent, sf::RenderWindow& window){}
-
-	void setType(std::string newType)
-	{
-		componentType = newType;
-	}
-
-	std::string getType()
-	{
-		return componentType;
-	}
-};
-
 
 //Basic generic components, shoud be extended to create behavior
 class InputComponent
 {
 public:
-	void update(GameObject &parent){}
+
+	virtual ~InputComponent();
+
+	virtual void update(GameObject &parent){}
 };
 
 
 class LogicComponent
 {
 public:
-	void update(GameObject &parent){}
+
+	virtual ~LogicComponent();
+
+	virtual void update(GameObject &parent){}
 };
 
 
@@ -50,7 +37,10 @@ private:
 	GameObject *storedParent;
 
 public:
-	void update(GameObject &parent)
+
+	virtual ~PhysicsComponent();
+
+	virtual void update(GameObject &parent)
 	{
 		storedParent = &parent;
 	}
@@ -61,9 +51,15 @@ public:
 	}
 };
 
+
 class GraphicsComponent
 {
-	void update(GameObject &parent, sf::RenderWindow &window){}
+public:
+	GraphicsComponent(){};
+
+	virtual ~GraphicsComponent(){};
+
+	virtual void update(GameObject &parent, sf::RenderWindow &window) =0;
 };
 
 class GameObject
@@ -78,6 +74,16 @@ public:
 	int position[2];
 	int velocity[2];
 	int angvel[2];
+
+	GameObject()
+	{
+		for(int i = 0; i < 2; i++)
+		{
+			position[i] = 0;
+			velocity[i] = 0;
+			angvel[i] = 0;
+		}
+	}
 
 	~GameObject()
 	{
@@ -105,38 +111,60 @@ public:
 		{
 			(*it)->update(*this);
 		}
-		
-	}
-
-	void addLogicComponent(Component *newComponent)
-	{
-		components.insert(components.begin(), newComponent);
-	}
-
-	//Returns pointer to component if component is found, NULL if not found. Therefore, can and should be used to test if object contains component.
-	Component* getComponent(std::string componentType)
-	{
-		for(std::vector<Component *>::iterator it = components.begin(); it != components.end(); ++it)
+		for(std::vector<LogicComponent *>::iterator it = logicComponents.begin(); it != logicComponents.end(); it++)
 		{
-			Component *currentComponent = *it;
-
-			if(currentComponent->getType().compare(componentType))
-			{
-				return currentComponent;
-			}
+			(*it)->update(*this);
 		}
-		return NULL;
+		for(std::vector<PhysicsComponent *>::iterator it = physicsComponents.begin(); it != physicsComponents.end(); it++)
+		{
+			(*it)->update(*this);
+		}
+		for(std::vector<GraphicsComponent *>::iterator it = graphicsComponents.begin(); it != graphicsComponents.end(); it++)
+		{
+			(*it)->update(*this, window);
+		}
+
 	}
+
+	void addInputComponent(InputComponent *newComponent)
+	{
+		inputComponents.insert(inputComponents.end(), newComponent);
+	}
+
+	void addLogicComponent(LogicComponent *newComponent)
+	{
+		logicComponents.insert(logicComponents.end(), newComponent);
+	}
+
+	void addPhysicsComponent(PhysicsComponent *newComponent)
+	{
+		physicsComponents.insert(physicsComponents.end(), newComponent);
+	}
+
+	void addGraphicsComponent(GraphicsComponent *newComponent)
+	{
+		graphicsComponents.insert(graphicsComponents.end(), newComponent);
+	}
+
 };
 
-class SpriteComponent: public GraphicsComponent
+class BasicSpriteComponent: public GraphicsComponent
 {
 private:
 	sf::Sprite componentSprite;
 
 public:
-	void update(GameObject &parent, sf::RenderWindow window)
+
+	~BasicSpriteComponent(){};
+
+	BasicSpriteComponent(sf::Texture *texture)
 	{
+		componentSprite.setTexture(*texture);
+	}
+
+	void update(GameObject &parent, sf::RenderWindow &window)
+	{
+		std::cout << "Sprite update called!" << std::endl;
 		componentSprite.setPosition(parent.position[0],parent.position[1]);
 		window.draw(componentSprite);
 	}
@@ -171,16 +199,22 @@ public:
 class Message
 {
 private:
-	
+
 	std::string contents;
+	message_type_t type;
 
 public:
 
 	Message(){}
 
-	Message(std::string message)
+	Message(message_type_t type, std::string message)
 	{
 		contents = message;
+	}
+
+	message_type_t getType()
+	{
+		return type;
 	}
 
 	std::string getContents()
@@ -197,7 +231,7 @@ public:
 class RingBuffer
 {
 private:
-	
+
 	int head, tail, storedMessages;
 	Message buffer[MESSAGE_QUEUE_SIZE];
 
@@ -210,7 +244,7 @@ public:
 
 	int addMessage(Message newMessage)
 	{
-		
+
 		if(storedMessages < MESSAGE_QUEUE_SIZE)
 		{
 			buffer[tail] = newMessage;
@@ -254,7 +288,7 @@ public:
 
 		} else
 		{
-			return Message("NULL");
+			return Message(NONE,"NULL");
 		}
 	}
 
@@ -264,21 +298,56 @@ public:
 	}
 };
 
-void loadTexture(sf::Texture array[])
+void loadTexture(sf::Texture textures[], int index, std::string name)
 {
-
+	sf::Texture tempTexture;
+	if(!tempTexture.loadFromFile(name))
+	{
+		std::cout << "unable to load texture" << name << std::endl;
+	} else
+	{
+	textures[index] = tempTexture;
+	}
 }
 
 int main()
-{/*
+{
 	//Perform initialization
 	sf::RenderWindow window(sf::VideoMode(200, 200), "SFML works!");
-	sf::Texture textureArray[TEXTURE_ARRAY_SIZE];
-	Component componentsArray[OBJECT_ARRAY_SIZE];
-
+	sf::Texture textures[TEXTURE_ARRAY_SIZE];
+	std::vector<GameObject*> gameObjectsArray;
+	GameObject *tempObject;
+	sf::Sprite backgroundSprite;
 
 	window.setFramerateLimit(60);
-*/
+
+	tempObject = new GameObject();
+	gameObjectsArray.push_back(tempObject);
+	loadTexture(textures, 0,"textures/square.png");
+	tempObject->addGraphicsComponent(new BasicSpriteComponent(&textures[0]));
+	loadTexture(textures, 1, "textures/background.png");
+	backgroundSprite.setTexture(textures[1]);
+
+	tempObject->position[0] = 10;
+	tempObject->position[1] = 50;
+
+	std::cout << "Reached main loop" << std::endl;
+	while(window.isOpen())
+	{
+		sf::Event event;
+        while (window.pollEvent(event))
+        {
+            if (event.type == sf::Event::Closed)
+                window.close();
+        }
+		window.clear();
+		window.draw(backgroundSprite);
+		for(std::vector<GameObject*>::iterator it = gameObjectsArray.begin(); it != gameObjectsArray.end(); it++)
+		{
+			(*it)->update(window);
+		}
+		window.display();
+	}
 
 //	Dummied out code for testing the ring buffer
 /*
