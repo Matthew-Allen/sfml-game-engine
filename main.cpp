@@ -10,14 +10,16 @@ enum message_type_t {NONE,INPUT, LOGIC, PHYSICS, GRAPHICS};
 
 class GameObject;
 
-//Basic generic components, shoud be extended to create behavior
+// Basic component definitions, should be extended with functionality.
 class InputComponent
 {
 public:
 
-	virtual ~InputComponent();
+	virtual ~InputComponent(){};
 
-	virtual void update(GameObject &parent){}
+	InputComponent(){};
+
+	virtual void update(GameObject &parent) =0;
 };
 
 
@@ -34,11 +36,11 @@ public:
 class PhysicsComponent
 {
 private:
-	GameObject *storedParent;
 
 public:
+	GameObject *storedParent;
 
-	virtual ~PhysicsComponent();
+	virtual ~PhysicsComponent(){};
 
 	virtual void update(GameObject &parent)
 	{
@@ -62,6 +64,14 @@ public:
 	virtual void update(GameObject &parent, sf::RenderWindow &window) =0;
 };
 
+
+
+
+
+
+
+
+//Basic game object.
 class GameObject
 {
 private:
@@ -148,6 +158,8 @@ public:
 
 };
 
+
+//Declarations of derived component classes
 class BasicSpriteComponent: public GraphicsComponent
 {
 private:
@@ -164,7 +176,7 @@ public:
 
 	void update(GameObject &parent, sf::RenderWindow &window)
 	{
-		std::cout << "Sprite update called!" << std::endl;
+		//std::cout << "Sprite update called!" << std::endl;
 		componentSprite.setPosition(parent.position[0],parent.position[1]);
 		window.draw(componentSprite);
 	}
@@ -174,8 +186,11 @@ class PlayerInputComponent: public InputComponent
 {
 public:
 
+	~PlayerInputComponent(){};
+
 	void update(GameObject &parent)
 	{
+		//std::cout << "Updating player input!" << std::endl;
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 		{
 			parent.velocity[0] -= 2;
@@ -191,6 +206,77 @@ public:
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
 		{
 			parent.velocity[1] += 2;
+		}
+	}
+};
+
+class PlayerPhysicsComponent: public PhysicsComponent
+{
+private:
+	bool hasStoredParent;
+
+public:
+
+	~PlayerPhysicsComponent(){};
+
+	PlayerPhysicsComponent()
+	{
+		hasStoredParent = false;
+	}
+
+	void update(GameObject &parent)
+	{
+//		std::cout << "Physics component updated!" << std::endl;
+		if(hasStoredParent == false)
+		{
+//			std::cout << "Stored parent object" <<std::endl;
+			storedParent = &parent;
+		}
+
+//		std::cout << "Clamping velocity." << std::endl;
+
+		if(storedParent->velocity[0] > 50)
+		{
+			storedParent->velocity[0] = 50;
+		}
+		if(storedParent->velocity[0] < -50)
+		{
+			storedParent->velocity[0] = -50;
+		}
+
+		if(storedParent->velocity[1] > 50)
+		{
+			storedParent->velocity[1] = 50;
+		}
+		if(storedParent->velocity[1] < -50)
+		{
+			storedParent->velocity[1] = -50;
+		}
+
+
+//		std::cout << "Updating position." << std::endl;
+
+		storedParent->position[0] += storedParent->velocity[0];
+		storedParent->position[1] += storedParent->velocity[1];
+
+//		std::cout << "Updating velocity." << std::endl;
+
+		if(storedParent->velocity[0] > 0)
+		{
+			storedParent->velocity[0] -= 1;
+		}
+		if(storedParent->velocity[1] > 0)
+		{
+			storedParent->velocity[1] -= 1;
+		}
+
+		if(storedParent->velocity[0] < 0)
+		{
+			storedParent->velocity[0] += 1;
+		}
+		if(storedParent->velocity[1] < 0)
+		{
+			storedParent->velocity[1] += 1;
 		}
 	}
 };
@@ -325,6 +411,8 @@ int main()
 	gameObjectsArray.push_back(tempObject);
 	loadTexture(textures, 0,"textures/square.png");
 	tempObject->addGraphicsComponent(new BasicSpriteComponent(&textures[0]));
+	tempObject->addInputComponent(new PlayerInputComponent());
+	tempObject->addPhysicsComponent(new PlayerPhysicsComponent());
 	loadTexture(textures, 1, "textures/background.png");
 	backgroundSprite.setTexture(textures[1]);
 

@@ -9,5 +9,5 @@ test:
 run:
 	./sfml-app
 clean:
-	rm main.o
-	rm sfml-app
+	rm ./sfml-app
+	rm ./main.o
