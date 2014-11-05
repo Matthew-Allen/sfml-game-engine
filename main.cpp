@@ -214,6 +214,7 @@ class PlayerPhysicsComponent: public PhysicsComponent
 {
 private:
 	bool hasStoredParent;
+	int maxVelocity;
 
 public:
 
@@ -222,6 +223,7 @@ public:
 	PlayerPhysicsComponent()
 	{
 		hasStoredParent = false;
+		maxVelocity = 15;
 	}
 
 	void update(GameObject &parent)
@@ -235,22 +237,22 @@ public:
 
 //		std::cout << "Clamping velocity." << std::endl;
 
-		if(storedParent->velocity[0] > 50)
+		if(storedParent->velocity[0] > maxVelocity)
 		{
-			storedParent->velocity[0] = 50;
+			storedParent->velocity[0] = maxVelocity;
 		}
-		if(storedParent->velocity[0] < -50)
+		if(storedParent->velocity[0] < -maxVelocity)
 		{
-			storedParent->velocity[0] = -50;
+			storedParent->velocity[0] = -maxVelocity;
 		}
 
-		if(storedParent->velocity[1] > 50)
+		if(storedParent->velocity[1] > maxVelocity)
 		{
-			storedParent->velocity[1] = 50;
+			storedParent->velocity[1] = maxVelocity;
 		}
-		if(storedParent->velocity[1] < -50)
+		if(storedParent->velocity[1] < -maxVelocity)
 		{
-			storedParent->velocity[1] = -50;
+			storedParent->velocity[1] = -maxVelocity;
 		}
 
 
@@ -399,7 +401,7 @@ void loadTexture(sf::Texture textures[], int index, std::string name)
 int main()
 {
 	//Perform initialization
-	sf::RenderWindow window(sf::VideoMode(200, 200), "SFML works!");
+	sf::RenderWindow window(sf::VideoMode(600, 600), "WIP SFML Game Engine");
 	sf::Texture textures[TEXTURE_ARRAY_SIZE];
 	std::vector<GameObject*> gameObjectsArray;
 	GameObject *tempObject;
@@ -426,7 +428,13 @@ int main()
         while (window.pollEvent(event))
         {
             if (event.type == sf::Event::Closed)
+            {
                 window.close();
+            }
+            if(sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+            {
+            	window.close();
+            }
         }
 		window.clear();
 		window.draw(backgroundSprite);
