@@ -215,6 +215,7 @@ class PlayerPhysicsComponent: public PhysicsComponent
 private:
 	bool hasStoredParent;
 	int maxVelocity;
+	int parentOffset;
 
 public:
 
@@ -223,19 +224,16 @@ public:
 	PlayerPhysicsComponent()
 	{
 		hasStoredParent = false;
-		maxVelocity = 15;
+		maxVelocity = 50;
+		parentOffset = 50;
 	}
 
 	void update(GameObject &parent)
 	{
-//		std::cout << "Physics component updated!" << std::endl;
 		if(hasStoredParent == false)
 		{
-//			std::cout << "Stored parent object" <<std::endl;
 			storedParent = &parent;
 		}
-
-//		std::cout << "Clamping velocity." << std::endl;
 
 		if(storedParent->velocity[0] > maxVelocity)
 		{
@@ -255,13 +253,17 @@ public:
 			storedParent->velocity[1] = -maxVelocity;
 		}
 
-
-//		std::cout << "Updating position." << std::endl;
+		if(storedParent->position[0] <= 0 || storedParent->position[0] >= 600 - parentOffset)
+		{
+			storedParent->velocity[0] *= -1;
+		}
+		if(storedParent->position[1] < 0 || storedParent->position[1] >= 600 - parentOffset)
+		{
+			storedParent->velocity[1] *= -1;
+		}
 
 		storedParent->position[0] += storedParent->velocity[0];
 		storedParent->position[1] += storedParent->velocity[1];
-
-//		std::cout << "Updating velocity." << std::endl;
 
 		if(storedParent->velocity[0] > 0)
 		{
