@@ -75,11 +75,23 @@ double MathVector::dotProduct(MathVector &vector)
 	return (vectorArray[0] * vector.getX()) + (vectorArray[1] * vector.getY());
 }
 
-double MathVector::wedgeProduct(MathVector &vector)
+/*
+double MathVector::crossProduct(MathVector &vector)
 {
 	return (vectorArray[0] * vector.getY()) - (vectorArray[1] * vector.getX());
 }
 
+MathVector MathVector::crossProduct(double inScalar, int type)
+{
+	if(type == 0)
+		{
+			return MathVector(inScalar*vectorArray[1],-inScalar*vectorArray[0]);
+		} else
+		{
+			return MathVector(-inScalar*vectorArray[1],inScalar*vectorArray[0]);
+		}
+}
+*/
 void MathVector::toUnit()
 {
 	//Converts THIS VECTOR to unit form. original magnitude will be lost, and this operation cannot be undone

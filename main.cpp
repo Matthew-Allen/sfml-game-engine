@@ -36,12 +36,26 @@ public:
 
 class PhysicsComponent
 {
-private:
+protected:
+
+	double position[2];
+	double velocity[2];
+	double angvel;
 
 public:
 	GameObject *storedParent;
 
 	virtual ~PhysicsComponent(){};
+
+	PhysicsComponent()
+	{
+		angvel = 0;
+		for(int i = 0; i < 2; i++)
+		{
+			position[i] = 0;
+			velocity[i] = 0;
+		}
+	}
 
 	virtual void update(GameObject &parent)
 	{
@@ -52,6 +66,52 @@ public:
 	{
 		return storedParent;
 	}
+
+	double getX()
+	{
+		return position[0];
+	}
+
+	double getY()
+	{
+		return position[1];
+	}
+
+	void setX(double newPosition)
+	{
+		position[0] = newPosition;
+	}
+
+	void setY(double newPosition)
+	{
+		position[1] = newPosition;
+	}
+
+	double getAngVel()
+	{
+		return angvel;
+	}
+
+	double getXVel()
+	{
+		return velocity[0];
+	}
+
+	double getYVel()
+	{
+		return velocity[1];
+	}
+
+	void setXVel(double newVel)
+	{
+		velocity[0] = newVel;
+	}
+
+	void setYVel(double newVel)
+	{
+		velocity[1] = newVel;
+	}
+
 };
 
 
@@ -82,18 +142,19 @@ private:
 	std::vector<GraphicsComponent *> graphicsComponents;
 
 public:
-	int position[2];
+	/*int position[2];
 	int velocity[2];
 	int angvel[2];
-
+*/
 	GameObject()
-	{
+	{/*
 		for(int i = 0; i < 2; i++)
 		{
 			position[i] = 0;
 			velocity[i] = 0;
 			angvel[i] = 0;
 		}
+	*/
 	}
 
 	~GameObject()
@@ -157,6 +218,26 @@ public:
 		graphicsComponents.insert(graphicsComponents.end(), newComponent);
 	}
 
+	InputComponent* getInputComponento(int index)
+	{
+		return inputComponents.at(index);
+	}
+
+	LogicComponent* getLogicComponent(int index)
+	{
+		return logicComponents.at(index);
+	}
+
+	PhysicsComponent* getPhysicsComponent(int index)
+	{
+		return physicsComponents.at(index);
+	}
+
+	GraphicsComponent* getGraphicsComponent(int index)
+	{
+		return graphicsComponents.at(index);
+	}
+
 };
 
 
@@ -178,7 +259,7 @@ public:
 	void update(GameObject &parent, sf::RenderWindow &window)
 	{
 		//std::cout << "Sprite update called!" << std::endl;
-		componentSprite.setPosition(parent.position[0],parent.position[1]);
+		componentSprite.setPosition(parent.getPhysicsComponent(0)->getX(),parent.getPhysicsComponent(0)->getY());
 		window.draw(componentSprite);
 	}
 };
@@ -194,19 +275,19 @@ public:
 		//std::cout << "Updating player input!" << std::endl;
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 		{
-			parent.velocity[0] -= 2;
+			parent.getPhysicsComponent(0)->setXVel(parent.getPhysicsComponent(0)->getXVel() - 2);
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 		{
-			parent.velocity[0] += 2;
+			parent.getPhysicsComponent(0)->setXVel(parent.getPhysicsComponent(0)->getXVel() + 2);
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
 		{
-			parent.velocity[1] -= 2;
+			parent.getPhysicsComponent(0)->setYVel(parent.getPhysicsComponent(0)->getYVel() -2);
 		}
 		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
 		{
-			parent.velocity[1] += 2;
+			parent.getPhysicsComponent(0)->setYVel(parent.getPhysicsComponent(0)->getYVel() + 2);
 		}
 	}
 };
@@ -236,54 +317,76 @@ public:
 			storedParent = &parent;
 		}
 
-		if(storedParent->velocity[0] > maxVelocity)
+		if(velocity[0] > maxVelocity)
 		{
-			storedParent->velocity[0] = maxVelocity;
+			velocity[0] = maxVelocity;
 		}
-		if(storedParent->velocity[0] < -maxVelocity)
+		if(velocity[0] < -maxVelocity)
 		{
-			storedParent->velocity[0] = -maxVelocity;
-		}
-
-		if(storedParent->velocity[1] > maxVelocity)
-		{
-			storedParent->velocity[1] = maxVelocity;
-		}
-		if(storedParent->velocity[1] < -maxVelocity)
-		{
-			storedParent->velocity[1] = -maxVelocity;
+			velocity[0] = -maxVelocity;
 		}
 
-		if(storedParent->position[0] <= 0 || storedParent->position[0] >= 600 - parentOffset)
+		if(velocity[1] > maxVelocity)
 		{
-			storedParent->velocity[0] *= -1;
+			velocity[1] = maxVelocity;
 		}
-		if(storedParent->position[1] < 0 || storedParent->position[1] >= 600 - parentOffset)
+		if(velocity[1] < -maxVelocity)
 		{
-			storedParent->velocity[1] *= -1;
-		}
-
-		storedParent->position[0] += storedParent->velocity[0];
-		storedParent->position[1] += storedParent->velocity[1];
-
-		if(storedParent->velocity[0] > 0)
-		{
-			storedParent->velocity[0] -= 1;
-		}
-		if(storedParent->velocity[1] > 0)
-		{
-			storedParent->velocity[1] -= 1;
+			velocity[1] = -maxVelocity;
 		}
 
-		if(storedParent->velocity[0] < 0)
+		if(position[0] <= 0 || position[0] >= 600 - parentOffset)
 		{
-			storedParent->velocity[0] += 1;
+			position[0] -= velocity[0];
+			velocity[0] *= -1;
 		}
-		if(storedParent->velocity[1] < 0)
+		if(position[1] < 0 || position[1] >= 600 - parentOffset)
 		{
-			storedParent->velocity[1] += 1;
+			position[1] -= velocity[1];
+			velocity[1] *= -1;
+		}
+
+		position[0] += velocity[0];
+		position[1] += velocity[1];
+
+		if(velocity[0] > 0)
+		{
+			velocity[0] -= 1;
+		}
+		if(velocity[1] > 0)
+		{
+			velocity[1] -= 1;
+		}
+
+		if(velocity[0] < 0)
+		{
+			velocity[0] += 1;
+		}
+		if(velocity[1] < 0)
+		{
+			velocity[1] += 1;
 		}
 	}
+};
+
+class RigidBodyPhysicsComponent: public PhysicsComponent
+{
+private:
+	MathVector position;
+	MathVector velocity;
+	double acceleration;
+
+public:
+
+	~RigidBodyPhysicsComponent(){};
+
+	RigidBodyPhysicsComponent()
+	{
+		position = MathVector(50,50);
+		velocity = MathVector(0,0);
+		acceleration = 0;
+	}
+
 };
 
 //Generic message class
@@ -410,10 +513,10 @@ int main()
 	GameObject *tempObject;
 	sf::Sprite backgroundSprite;
 	MathVector testVector = MathVector(5,5);
-	MathVector secondVector = MathVector(10,10);
+	MathVector secondVector = MathVector(2,5);
 	double outputNumber;
 
-	outputNumber = testVector.dotProduct(secondVector);
+	outputNumber = testVector.crossProduct(secondVector);
 
 	std::cout << outputNumber << std::endl;
 
@@ -428,8 +531,8 @@ int main()
 	loadTexture(textures, 1, "textures/background.png");
 	backgroundSprite.setTexture(textures[1]);
 
-	tempObject->position[0] = 10;
-	tempObject->position[1] = 50;
+	tempObject->getPhysicsComponent(0)->setX(10);
+	tempObject->getPhysicsComponent(0)->setY(50);
 
 	std::cout << "Reached main loop" << std::endl;
 	while(window.isOpen())
