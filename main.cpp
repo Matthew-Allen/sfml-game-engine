@@ -1,6 +1,7 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <string>
+#include "mathvector.h"
 
 #define TEXTURE_ARRAY_SIZE 150
 #define OBJECT_ARRAY_SIZE 150
@@ -408,6 +409,13 @@ int main()
 	std::vector<GameObject*> gameObjectsArray;
 	GameObject *tempObject;
 	sf::Sprite backgroundSprite;
+	MathVector testVector = MathVector(5,5);
+	MathVector secondVector = MathVector(10,10);
+	double outputNumber;
+
+	outputNumber = testVector.dotProduct(secondVector);
+
+	std::cout << outputNumber << std::endl;
 
 	window.setFramerateLimit(60);
 
