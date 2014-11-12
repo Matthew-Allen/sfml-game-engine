@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include "mathvector.h"
+#include <limits>
 
 #define TEXTURE_ARRAY_SIZE 150
 #define OBJECT_ARRAY_SIZE 150
@@ -42,6 +43,9 @@ protected:
 	double velocity[2];
 	double angvel;
 
+	enum componentType {CIRLCE, POINT, AABB, OBB, POLYGON};
+	componentType type;
+
 public:
 	GameObject *storedParent;
 
@@ -75,6 +79,12 @@ public:
 	double getY()
 	{
 		return position[1];
+	}
+
+	void setPosition(int x, int y)
+	{
+		position[0] = x;
+		position[1] = y;
 	}
 
 	void setX(double newPosition)
@@ -369,22 +379,110 @@ public:
 	}
 };
 
-class RigidBodyPhysicsComponent: public PhysicsComponent
+class ConvexPolygon: public PhysicsComponent
 {
 private:
-	MathVector position;
-	MathVector velocity;
-	double acceleration;
+
+	sf::ConvexShape polygon;
 
 public:
 
-	~RigidBodyPhysicsComponent(){};
+	~ConvexPolygon(){};
 
-	RigidBodyPhysicsComponent()
+	ConvexPolygon()
 	{
-		position = MathVector(50,50);
-		velocity = MathVector(0,0);
-		acceleration = 0;
+		type = POLYGON;
+	}
+
+	ConvexPolygon(std::vector<MathVector> vertices)
+	{
+		type = POLYGON;
+		polygon.setPointCount(vertices.size());
+		for(int i = 0; i < polygon.getPointCount(); i++)
+		{
+			polygon.setPoint(i,sf::Vector2f(vertices[i].getX(), vertices[i].getY()));
+		}
+	}
+
+	ConvexPolygon(sf::ConvexShape shape)
+	{
+		polygon = shape;
+	}
+
+	void update(GameObject &parent)
+	{
+		polygon.setPosition(position[0],position[1]);
+	}
+
+	MathVector getWorldSpacePoint(int i)
+	{
+		MathVector point = MathVector(polygon.getPoint(i));
+		MathVector newVector = point.addVectors(polygon.getPosition());
+		return point.addVectors(MathVector(polygon.getPosition()));
+	}
+
+	MathVector getWorldSpaceNormal(int i)
+	{
+		MathVector firstPoint = MathVector(polygon.getPoint(i));
+		MathVector secondPoint;
+		MathVector edgeVector;
+
+		if(i != polygon.getPointCount())
+		{
+			secondPoint = MathVector(polygon.getPoint(i+1));
+		} else
+		{
+			secondPoint = MathVector(polygon.getPoint(0));
+		}
+		firstPoint = firstPoint.addVectors(MathVector(polygon.getPosition()));
+		secondPoint = secondPoint.addVectors(MathVector(polygon.getPosition()));
+
+		firstPoint = firstPoint.subtractVectors(secondPoint);
+
+		edgeVector = firstPoint.perpendicular();
+
+		return edgeVector;
+	}
+
+	MathVector getFurthestPoint(MathVector direction)
+	{
+		double greatestDotProduct = -std::numeric_limits<double>::max();
+		double currentDotProduct;
+		MathVector currentVertex;
+		MathVector bestVertex;
+		for(int i = 0; i < polygon.getPointCount(); i++)
+		{
+			currentVertex = this->getWorldSpacePoint(i);
+			currentDotProduct = currentVertex.dotProduct(direction);
+			if(currentDotProduct > greatestDotProduct)
+			{
+				greatestDotProduct = currentDotProduct;
+				bestVertex = currentVertex;
+			}
+		}
+
+		std::cout << "Got furthest point: " << bestVertex.getX() << ", " << bestVertex.getY() << " in direction " << direction.getX() << ", " << direction.getY() << std::endl;
+
+		return bestVertex;
+
+	}
+
+	void setColor(sf::Color newColor)
+	{
+		polygon.setFillColor(newColor);
+	}
+
+/*	sf::ConvexShape buildMinkowskiDifference(ConvexPolygon b)
+	{
+		for(int i = 0; i < polygon.getPointCount(); i++)
+		{
+			MathVector worldSpaceNormal = this->getWorldSpaceNormal(i);
+		}
+	}
+*/
+	sf::ConvexShape getConvexShape()
+	{
+		return polygon;
 	}
 
 };
@@ -504,6 +602,218 @@ void loadTexture(sf::Texture textures[], int index, std::string name)
 	}
 }
 
+MathVector projectPointOntoLine(MathVector point, MathVector vertex1, MathVector vertex2)
+{
+	MathVector e1 = vertex2.subtractVectors(vertex1);
+	MathVector e2 = point.subtractVectors(vertex1);
+	double valDP = e1.dotProduct(e2);
+	double e1Length = e1.magnitude();
+	double e2Length = e2.magnitude();
+	double cos = valDP / (e1Length*e2Length);
+
+	double projLenOfLine = cos * e2Length;
+
+	MathVector p = MathVector(vertex1.getX() + (projLenOfLine * e1.getX()) / e1Length,
+	vertex1.getY() + (projLenOfLine * e1.getY()) / e1Length);
+
+	return p;
+}
+
+MathVector getSupportVertex(MathVector a, MathVector b)
+{
+	return a.subtractVectors(b);
+}
+
+MathVector tripleProduct(MathVector a, MathVector b, MathVector c)
+{
+	MathVector U = b.multiply(c.dotProduct(a));
+	std::cout << "U: " << U.getX() << ", " << U.getY() << std::endl;
+	MathVector V = a.multiply(c.dotProduct(b));
+	std::cout << "V: " << V.getX() << ", " << V.getY() << std::endl;
+
+	std::cout << "U-V: " << U.subtractVectors(V).getX() << ", " << U.subtractVectors(V).getY() << std::endl;
+
+	return U.subtractVectors(V);
+}
+
+bool containsOrigin(std::vector<MathVector> &simplex, MathVector &direction)
+{
+	std::cout << "Reached contains origin check." << std::endl;
+	MathVector a = simplex.back();
+	MathVector b, c, ab, ac, abPerp, acPerp;
+	MathVector ao = a.negate();
+
+	if(simplex.size() == 3)
+	{
+		b = simplex[0];
+		c = simplex[1];
+
+		ab = b.subtractVectors(a);
+		ac = c.subtractVectors(a);
+
+		abPerp = tripleProduct(ac, ab, ab);
+		acPerp = tripleProduct(ab, ac, ac);
+
+		if(abPerp.dotProduct(ao) > 0)
+		{
+			simplex.erase(simplex.begin() + 1);
+			direction = abPerp;
+			std::cout << "abPerp Direction set to: " << direction.getX() << ", " << direction.getY() << std::endl;
+		} else if (acPerp.dotProduct(ao) > 0)
+		{
+			simplex.erase(simplex.begin());
+			direction = acPerp;
+			std::cout << "acPerp Direction set to: " << direction.getX() << ", " << direction.getY() << std::endl;
+		} else
+		{
+			return true;
+		}
+	} else
+	{
+		b = simplex[0];
+		std::cout << "Simplex 0: " << simplex[0].getX() << ", " << simplex[0].getY() << std::endl;
+		ab = b.subtractVectors(a);
+		std::cout << "a: " << a.getX() << ", " << a.getY() << std::endl;
+		std::cout << "b: " << b.getX() << ", " << b.getY() << std::endl;
+		std::cout << "ao: " << ao.getX() << ", " << ao.getY() << std::endl;
+		std::cout << "ab: " << ab.getX() << ", " << ab.getY() << std::endl;
+		abPerp = tripleProduct(ab, ao, ab);
+/*
+		if(abPerp.getX() == 0 || abPerp.getY() == 0)
+		{
+			direction = MathVector(-ab.getY(), ab.getX());
+		} else
+		{
+			direction = abPerp;
+		}
+*/
+		direction = abPerp;
+		std::cout << "abPerp lineTest Direction set to: " << direction.getX() << ", " << direction.getY() << std::endl;
+	}
+	return false;
+}
+
+bool buildMinkowskiDifference(ConvexPolygon a, ConvexPolygon b)
+{
+	MathVector direction = MathVector(1,1);
+	std::vector<MathVector> simplex;
+	MathVector point0 = a.getFurthestPoint(direction);
+	MathVector point1 = b.getFurthestPoint(direction.negate());
+	
+	std::cout << "Getting new support vertex." << std::endl;
+	std::cout << point0.getX() << ", " << point0.getY() << std::endl;
+	std::cout << point1.getX() << ", " << point1.getY() << std::endl;
+	std::cout << getSupportVertex(point0,point1).getX() << ", " << getSupportVertex(point0,point1).getY() << std::endl;
+	simplex.push_back(getSupportVertex(point0, point1));
+//	std::cout << simplex.back().getX() << ", " << simplex.back().getY() << std::endl;
+
+	direction = direction.negate();
+
+	while(true)
+	{
+		point0 = a.getFurthestPoint(direction);
+		point1 = b.getFurthestPoint(direction.negate());
+		std::cout << "Getting new support vertex." << std::endl;
+		std::cout << point0.getX() << ", " << point0.getY() << std::endl;
+		std::cout << point1.getX() << ", " << point1.getY() << std::endl;
+		std::cout << getSupportVertex(point0,point1).getX() << ", " << getSupportVertex(point0,point1).getY() << std::endl;
+		simplex.push_back(getSupportVertex(point0, point1));
+//		std::cout << simplex.back().getX() << ", " << simplex.back().getY() << std::endl;
+		std::cout << "Performing dot product of " << simplex.back().getX() << ", " << simplex.back().getY() << " against direction: " << direction.getX() << ", " << direction.getY() << std::endl;
+		if(simplex.back().dotProduct(direction) <= 0)
+		{
+			std::cout << "final point dot product with direction: " << simplex.back().dotProduct(direction) << std::endl;
+			std::cout << "Point not past origin, minkowski sum cannot include origin." << std::endl;
+			return false;
+		} else if(containsOrigin(simplex, direction))
+		{
+			return true;
+		}
+	}
+}
+
+/* Doesn't function, scrapping and trying different algorithm.
+MathVector buildMinkowskiDifference(ConvexPolygon a, ConvexPolygon b)
+{
+	MathVector minkowskiFacePoint1, minkowskiFacePoint2, projection, p0, p1, worldSpaceNormal, worldSpaceVector1, worldSpaceVector2;
+	double faceDist, distance;
+	double leastPenetratingDistance = -std::numeric_limits<double>::max();
+	double leastPositiveDistance = std::numeric_limits<double>::max();
+	std::vector<MathVector> supportingVertices;
+	for(int i = 0; i < a.getConvexShape().getPointCount(); i++)
+	{
+		worldSpaceNormal = a.getWorldSpaceNormal(i);
+		worldSpaceVector1 = a.getWorldSpacePoint(i);
+		worldSpaceVector2 = a.getWorldSpacePoint((i+1)%a.getConvexShape().getPointCount());
+
+		supportingVertices.push_back(b.getSupportVertices(worldSpaceNormal.negate()));
+
+		for(int j = 0; j < supportingVertices.size(); j++)
+		{
+			minkowskiFacePoint1 = supportingVertices[j].subtractVectors(worldSpaceVector1);
+			minkowskiFacePoint2 = supportingVertices[j].subtractVectors(worldSpaceVector2);
+
+			faceDist = minkowskiFacePoint1.dotProduct(worldSpaceNormal);
+
+			projection = projectPointOntoLine(MathVector(), minkowskiFacePoint1, minkowskiFacePoint2);
+
+			if(faceDist < 0)
+			{
+				distance = projection.magnitude() * -1;
+			}
+			std::cout << "Distance: " << distance << std::endl;
+			if(distance > leastPenetratingDistance)
+			{
+				p0 = projection;
+				leastPenetratingDistance = distance;
+			}
+			if(distance > 0 && distance < leastPositiveDistance)
+			{
+				p1 = projection;
+				leastPositiveDistance = distance;
+			}
+
+		}
+	}
+
+	for(int i = 0; i < b.getConvexShape().getPointCount(); i++)
+	{
+		worldSpaceNormal = b.getWorldSpaceNormal(i);
+		worldSpaceVector1 = b.getWorldSpacePoint(i);
+		worldSpaceVector2 = b.getWorldSpacePoint((i+1)%b.getConvexShape().getPointCount());
+
+		supportingVertices.push_back(a.getSupportVertices(worldSpaceNormal.negate()));
+
+		for(int j = 0; j < supportingVertices.size(); j++)
+		{
+			minkowskiFacePoint1 = supportingVertices[j].subtractVectors(worldSpaceVector1);
+			minkowskiFacePoint2 = supportingVertices[j].subtractVectors(worldSpaceVector2);
+
+			faceDist = minkowskiFacePoint1.dotProduct(worldSpaceNormal);
+
+			projection = projectPointOntoLine(MathVector(), minkowskiFacePoint1, minkowskiFacePoint2);
+
+			if(faceDist < 0)
+			{
+				distance = projection.magnitude() * -1;
+			}
+			std::cout << "Distance: " << distance << std::endl;
+			if(distance > leastPenetratingDistance)
+			{
+				p0 = projection;
+				leastPenetratingDistance = distance;
+			}
+			if(distance > 0 && distance < leastPositiveDistance)
+			{
+				p1 = projection;
+				leastPositiveDistance = distance;
+			}
+
+		}
+	}
+	return MathVector(leastPenetratingDistance,leastPositiveDistance);
+}
+*/
 int main()
 {
 	//Perform initialization
@@ -512,13 +822,6 @@ int main()
 	std::vector<GameObject*> gameObjectsArray;
 	GameObject *tempObject;
 	sf::Sprite backgroundSprite;
-	MathVector testVector = MathVector(5,5);
-	MathVector secondVector = MathVector(2,5);
-	double outputNumber;
-
-	outputNumber = testVector.crossProduct(secondVector);
-
-	std::cout << outputNumber << std::endl;
 
 	window.setFramerateLimit(60);
 
@@ -533,6 +836,36 @@ int main()
 
 	tempObject->getPhysicsComponent(0)->setX(10);
 	tempObject->getPhysicsComponent(0)->setY(50);
+
+	std::vector<MathVector> testVector;
+	testVector.push_back(MathVector(40,90));
+	testVector.push_back(MathVector(40,50));
+	testVector.push_back(MathVector(100,110));
+
+	ConvexPolygon testPolygon0 = ConvexPolygon(testVector);
+	testVector[0] = MathVector(70,30);
+	testVector[1] = MathVector(50,70);
+	testVector[2] = MathVector(120,70);
+	testVector.push_back(MathVector(100,20));
+	ConvexPolygon testPolygon1 = ConvexPolygon(testVector);
+//	testPolygon0.setPosition(100,100);
+//	testPolygon1.setPosition(133,133);
+	testPolygon0.update(*tempObject);
+	testPolygon1.update(*tempObject);
+
+	testPolygon0.setColor(sf::Color(255,0,0));
+	testPolygon1.setColor(sf::Color(0,255,0));
+	
+	if(buildMinkowskiDifference(testPolygon0, testPolygon1))
+	{
+		std::cout << "Collision detected!" << std::endl;
+	} else
+	{
+		std::cout << "Collision not detected." << std::endl;
+	}
+
+	MathVector test1(-12,-4);
+	MathVector test2(8,2);
 
 	std::cout << "Reached main loop" << std::endl;
 	while(window.isOpen())
@@ -555,6 +888,8 @@ int main()
 		{
 			(*it)->update(window);
 		}
+		window.draw(testPolygon0.getConvexShape());
+		window.draw(testPolygon1.getConvexShape());
 		window.display();
 	}
 

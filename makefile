@@ -15,5 +15,4 @@ run:
 	./sfml-app
 clean:
 	rm ./sfml-app
-	rm ./main.o
-	rm ./mathvector.o
+	rm ./*.o

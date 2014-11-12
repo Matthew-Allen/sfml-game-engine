@@ -1,13 +1,14 @@
 #ifndef MATHVECTOR_H
 #define MATHVECTOR_H
 #include <math.h>
+#include <SFML/Graphics.hpp>
 
 
 
 class MathVector
 {
 private: 
-	int vectorArray[2];
+	double vectorArray[2];
 public:
 
 	~MathVector();
@@ -18,23 +19,25 @@ public:
 		vectorArray[1] = 0;
 	}
 
-	MathVector(int value1, int value2);
+	MathVector(double value1, double value2);
 
-	int getX();
+	MathVector(sf::Vector2f);
 
-	int getY();
+	double getX();
 
-	void addVectors(MathVector &inputVector);
+	double getY();
 
-	void subtractVectors(MathVector &inputVector);
+	MathVector addVectors(MathVector inputVector);
 
-	void addX(int x);
+	MathVector subtractVectors(MathVector inputVector);
 
-	void addY(int y);
+	MathVector addX(double x);
 
-	void subtractX(int x);
+	MathVector addY(double y);
 
-	void subtractY(int y);
+	MathVector subtractX(double x);
+
+	MathVector subtractY(double y);
 
 	double magnitude();
 
@@ -42,13 +45,10 @@ public:
 
 	double dotProduct(MathVector &vector);
 
-	double crossProduct(MathVector &vector)
-	{
-		return (vectorArray[0] * vector.getY()) - (vectorArray[1] * vector.getX());
-	}
+	double wedgeProduct(MathVector &vector);
 
-	MathVector crossProduct(double inScalar, int type=0)
-	{
+	double crossProduct(MathVector vector);
+/*	{
 		if(type == 0)
 		{
 			return MathVector(inScalar*vectorArray[1],-inScalar*vectorArray[0]);
@@ -57,10 +57,16 @@ public:
 			return MathVector(-inScalar*vectorArray[1],inScalar*vectorArray[0]);
 		}
 	}
+*/
+	MathVector toUnit();
 
-	void toUnit();
+	MathVector negate();
+
+	MathVector multiply(double scalar);
 
 	MathVector perpendicular();
+
+	sf::Vector2f toSFMLVector();
 
 };
 
