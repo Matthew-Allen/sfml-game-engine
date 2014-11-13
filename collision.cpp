@@ -4,14 +4,6 @@
 
 #define TOLERANCE 0.00001
 
-/*
-struct minkowskiDifference_t
-{
-	bool colliding;
-	MathVector collisionNormal;
-	double collisionDepth;
-};
-*/
 struct Edge_t
 {
 	double distance;

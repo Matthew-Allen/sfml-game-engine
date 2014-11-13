@@ -8,12 +8,13 @@
 #define TEXTURE_ARRAY_SIZE 150
 #define OBJECT_ARRAY_SIZE 150
 #define MESSAGE_QUEUE_SIZE 150
-#define TOLERANCE 0.00001
 
 enum message_type_t {NONE,INPUT, LOGIC, PHYSICS, GRAPHICS};
 
 class GameObject;
 
+//Yeah, yeah, I should probably finda  better way of dealing with this than a global variable
+bool hasFocus;
 // Basic component definitions, should be extended with functionality.
 class InputComponent
 {
@@ -288,22 +289,25 @@ public:
 
 	void update(GameObject &parent)
 	{
-		//std::cout << "Updating player input!" << std::endl;
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+		if(hasFocus)
 		{
-			parent.getPhysicsComponent(0)->setXVel(parent.getPhysicsComponent(0)->getXVel() - 2);
-		}
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-		{
-			parent.getPhysicsComponent(0)->setXVel(parent.getPhysicsComponent(0)->getXVel() + 2);
-		}
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-		{
-			parent.getPhysicsComponent(0)->setYVel(parent.getPhysicsComponent(0)->getYVel() -2);
-		}
-		if(sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-		{
-			parent.getPhysicsComponent(0)->setYVel(parent.getPhysicsComponent(0)->getYVel() + 2);
+			//std::cout << "Updating player input!" << std::endl;
+			if(sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+			{
+				parent.getPhysicsComponent(0)->setXVel(parent.getPhysicsComponent(0)->getXVel() - 2);
+			}
+			if(sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+			{
+				parent.getPhysicsComponent(0)->setXVel(parent.getPhysicsComponent(0)->getXVel() + 2);
+			}
+			if(sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+			{
+				parent.getPhysicsComponent(0)->setYVel(parent.getPhysicsComponent(0)->getYVel() -2);
+			}
+			if(sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+			{
+				parent.getPhysicsComponent(0)->setYVel(parent.getPhysicsComponent(0)->getYVel() + 2);
+			}
 		}
 	}
 };
@@ -415,6 +419,8 @@ public:
 
 	ConvexPolygon(sf::ConvexShape shape)
 	{
+		type = POLYGON;
+		maxVelocity = 50;
 		polygon = shape;
 	}
 
@@ -464,53 +470,10 @@ public:
 
 	MathVector getWorldSpacePoint(int i)
 	{
+		//Only handles translation as of now. Will update when I actually understand transform matrices.
 		MathVector point = MathVector(polygon.getPoint(i));
 		MathVector newVector = point.addVectors(polygon.getPosition());
 		return point.addVectors(MathVector(polygon.getPosition()));
-	}
-
-	MathVector getWorldSpaceNormal(int i)
-	{
-		MathVector firstPoint = MathVector(polygon.getPoint(i));
-		MathVector secondPoint;
-		MathVector edgeVector;
-
-		if(i != polygon.getPointCount())
-		{
-			secondPoint = MathVector(polygon.getPoint(i+1));
-		} else
-		{
-			secondPoint = MathVector(polygon.getPoint(0));
-		}
-		firstPoint = firstPoint.addVectors(MathVector(polygon.getPosition()));
-		secondPoint = secondPoint.addVectors(MathVector(polygon.getPosition()));
-
-		firstPoint = firstPoint.subtractVectors(secondPoint);
-
-		edgeVector = firstPoint.perpendicular();
-
-		return edgeVector;
-	}
-
-	MathVector getFurthestPoint(MathVector direction)
-	{
-		double greatestDotProduct = -std::numeric_limits<double>::max();
-		double currentDotProduct;
-		MathVector currentVertex;
-		MathVector bestVertex;
-		for(int i = 0; i < polygon.getPointCount(); i++)
-		{
-			currentVertex = this->getWorldSpacePoint(i);
-			currentDotProduct = currentVertex.dotProduct(direction);
-			if(currentDotProduct > greatestDotProduct)
-			{
-				greatestDotProduct = currentDotProduct;
-				bestVertex = currentVertex;
-			}
-		}
-
-		return bestVertex;
-
 	}
 
 	std::vector<MathVector> toVector()
@@ -667,165 +630,6 @@ MathVector projectPointOntoLine(MathVector point, MathVector vertex1, MathVector
 	return p;
 }
 
-/*
-MathVector getSupportVertex(MathVector a, MathVector b)
-{
-	return a.subtractVectors(b);
-}
-
-MathVector tripleProduct(MathVector a, MathVector b, MathVector c)
-{
-	MathVector U = b.multiply(c.dotProduct(a));
-	MathVector V = a.multiply(c.dotProduct(b));
-
-	return U.subtractVectors(V);
-}
-
-bool containsOrigin(std::vector<MathVector> &simplex, MathVector &direction)
-{
-	MathVector a = simplex.back();
-	MathVector b, c, ab, ac, abPerp, acPerp;
-	MathVector ao = a.negate();
-
-	if(simplex.size() == 3)
-	{
-		b = simplex[0];
-		c = simplex[1];
-
-		ab = b.subtractVectors(a);
-		ac = c.subtractVectors(a);
-
-		abPerp = tripleProduct(ac, ab, ab);
-		acPerp = tripleProduct(ab, ac, ac);
-
-		if(abPerp.dotProduct(ao) > 0)
-		{
-			simplex.erase(simplex.begin() + 1);
-			direction = abPerp;
-		} else if (acPerp.dotProduct(ao) > 0)
-		{
-			simplex.erase(simplex.begin());
-			direction = acPerp;
-		} else
-		{
-			return true;
-		}
-	} else
-	{
-		b = simplex[0];
-		ab = b.subtractVectors(a);
-		abPerp = tripleProduct(ab, ao, ab);
-
-		if(abPerp.getX() == 0 || abPerp.getY() == 0)
-		{
-			direction = ab.perpendicular();
-		} else
-		{
-			direction = abPerp;
-		}
-	}
-	return false;
-}
-
-struct Edge_t
-{
-	double distance;
-	MathVector normal;
-	int index;
-};
-
-Edge_t findClosestEdge(std::vector<MathVector> simplex)
-{
-	Edge_t closest;
-	closest.distance = std::numeric_limits<double>::max();
-	closest.index = 0;
-	double d;
-	MathVector a, b, e, oa, n;
-
-	for(int i = 0; i < simplex.size(); i++)
-	{
-		a = simplex[i];
-		b = simplex[(i+1)%simplex.size()];
-
-		e = b.subtractVectors(a);
-		oa = a;
-
-		n = tripleProduct(e, oa , e);
-
-		n = n.toUnit();
-//		std::cout << "normal triple product: " << n.getX() << ", " << n.getY() << std::endl;
-
-		d = n.dotProduct(a);
-
-		if(d < closest.distance)
-		{
-			closest.distance = d;
-			closest.normal = n;
-			closest.index = (i+1)%simplex.size();
-		}
-
-	}
-	return closest;
-}
-
-struct minkowskiDifference_t
-{
-	bool colliding;
-	MathVector collisionNormal;
-	double collisionDepth;
-};
-
-minkowskiDifference_t buildMinkowskiDifference(ConvexPolygon a, ConvexPolygon b)
-{
-	MathVector direction = MathVector(1,1);
-	std::vector<MathVector> simplex;
-	MathVector point0 = a.getFurthestPoint(direction);
-	MathVector point1 = b.getFurthestPoint(direction.negate());
-	simplex.push_back(getSupportVertex(point0, point1));
-	minkowskiDifference_t difference;
-
-	direction = direction.negate();
-
-	while(true)
-	{
-		point0 = a.getFurthestPoint(direction);
-		point1 = b.getFurthestPoint(direction.negate());
-		simplex.push_back(getSupportVertex(point0, point1));
-		if(simplex.back().dotProduct(direction) <= 0)
-		{
-			difference.colliding = false;
-			difference.collisionNormal = MathVector(0,0);
-			difference.collisionDepth = 0;
-			return difference;
-		} else if(containsOrigin(simplex, direction) && simplex.size() == 3)
-		{
-			while(true)
-			{
-				//Perform EPA to get collision normal and penetration distance
-				Edge_t e = findClosestEdge(simplex);
-
-				point0 = a.getFurthestPoint(e.normal);
-				point1 = b.getFurthestPoint(e.normal.negate());
-				MathVector p = getSupportVertex(point0, point1);
-				double d = p.dotProduct(e.normal);
-//				std::cout << d - e.distance << std::endl;
-//				std::cout << "Simplex size: " << simplex.size() << std::endl;
-				if(d - e.distance < TOLERANCE)
-				{
-					difference.collisionNormal = e.normal;
-					difference.collisionDepth = d;
-					difference.colliding = true;
-					return difference;
-				} else
-				{
-//					std::cout << "Closest edge not found in this iteration, adding point to simplex and continuing." << std::endl;
-					simplex.insert((simplex.begin()+e.index),p);
-				}
-			}
-		}
-	}
-}
-*/
 int main()
 {
 	//Perform initialization
@@ -875,6 +679,7 @@ int main()
 	std::cout << "Reached main loop" << std::endl;
 	while(window.isOpen())
 	{
+		hasFocus = window.hasFocus();
 		sf::Event event;
         while (window.pollEvent(event))
         {
