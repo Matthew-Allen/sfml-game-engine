@@ -1,10 +1,13 @@
-default:
+cledefault:
 	make build
 build:
 
 	g++ -c main.cpp
 	g++ -c mathvector.cpp
-	g++ -o sfml-app main.o mathvector.o -lsfml-graphics -lsfml-window -lsfml-system
+	g++ -c collision.cpp
+	g++ -o sfml-app main.o mathvector.o collision.o -lsfml-graphics -lsfml-window -lsfml-system
+
+	make clean
 
 #	g++ -v main.cpp mathvector.cpp -o sfml-app -lsfml-graphics -lsfml-window -lsfml-system
 #	g++ main.o -o sfml-app -lsfml-graphics -lsfml-window -lsfml-system
@@ -13,6 +16,11 @@ test:
 	make run
 run:
 	./sfml-app
-clean:
+fullclean:
 	rm ./sfml-app
-	rm ./*.o
+	make clean
+
+clean:
+	rm ./main.o
+	rm ./mathvector.o
+	rm ./collision.o

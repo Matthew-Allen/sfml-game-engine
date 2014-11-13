@@ -3,6 +3,7 @@
 #include <string>
 #include "mathvector.h"
 #include <limits>
+#include "collision.h"
 
 #define TEXTURE_ARRAY_SIZE 150
 #define OBJECT_ARRAY_SIZE 150
@@ -512,19 +513,21 @@ public:
 
 	}
 
+	std::vector<MathVector> toVector()
+	{
+		std::vector<MathVector> returnVector;
+		for(int i = 0; i < polygon.getPointCount(); i++)
+		{
+			returnVector.push_back(getWorldSpacePoint(i));
+		}
+		return returnVector;
+	}
+
 	void setColor(sf::Color newColor)
 	{
 		polygon.setFillColor(newColor);
 	}
 
-/*	sf::ConvexShape buildMinkowskiDifference(ConvexPolygon b)
-	{
-		for(int i = 0; i < polygon.getPointCount(); i++)
-		{
-			MathVector worldSpaceNormal = this->getWorldSpaceNormal(i);
-		}
-	}
-*/
 	sf::ConvexShape getConvexShape()
 	{
 		return polygon;
@@ -664,6 +667,7 @@ MathVector projectPointOntoLine(MathVector point, MathVector vertex1, MathVector
 	return p;
 }
 
+/*
 MathVector getSupportVertex(MathVector a, MathVector b)
 {
 	return a.subtractVectors(b);
@@ -821,7 +825,7 @@ minkowskiDifference_t buildMinkowskiDifference(ConvexPolygon a, ConvexPolygon b)
 		}
 	}
 }
-
+*/
 int main()
 {
 	//Perform initialization
@@ -884,7 +888,7 @@ int main()
             }
         }
 
-        minkowskiDifference_t testCollision = buildMinkowskiDifference(*testPolygon0, testPolygon1);
+        minkowskiDifference_t testCollision = buildMinkowskiDifference(testPolygon0->toVector(), testPolygon1.toVector());
 		if(testCollision.colliding)
 		{
 			std::cout << "Collision detected!" << std::endl;
