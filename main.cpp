@@ -471,9 +471,10 @@ public:
 	MathVector getWorldSpacePoint(int i)
 	{
 		//Only handles translation as of now. Will update when I actually understand transform matrices.
+		sf::Transform transformMatrix = polygon.getTransform();
 		MathVector point = MathVector(polygon.getPoint(i));
-		MathVector newVector = point.addVectors(polygon.getPosition());
-		return point.addVectors(MathVector(polygon.getPosition()));
+		MathVector newVector = MathVector(transformMatrix.transformPoint(point.toSFMLVector()));
+		return newVector;
 	}
 
 	std::vector<MathVector> toVector()
