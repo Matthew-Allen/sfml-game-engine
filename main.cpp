@@ -1,15 +1,14 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <string>
-#include "mathvector.h"
+#include <stdexcept>
 #include <limits>
+#include "mathvector.h"
 #include "collision.h"
 
 #define TEXTURE_ARRAY_SIZE 150
 #define OBJECT_ARRAY_SIZE 150
 #define MESSAGE_QUEUE_SIZE 150
-
-enum message_type_t {NONE,INPUT, LOGIC, PHYSICS, GRAPHICS};
 
 class GameObject;
 
@@ -159,19 +158,8 @@ private:
 	std::vector<GraphicsComponent *> graphicsComponents;
 
 public:
-	/*int position[2];
-	int velocity[2];
-	int angvel[2];
-*/
 	GameObject()
-	{/*
-		for(int i = 0; i < 2; i++)
-		{
-			position[i] = 0;
-			velocity[i] = 0;
-			angvel[i] = 0;
-		}
-	*/
+	{
 	}
 
 	~GameObject()
@@ -505,20 +493,14 @@ class Message
 private:
 
 	std::string contents;
-	message_type_t type;
 
 public:
 
 	Message(){}
 
-	Message(message_type_t type, std::string message)
+	Message(std::string message)
 	{
 		contents = message;
-	}
-
-	message_type_t getType()
-	{
-		return type;
 	}
 
 	std::string getContents()
@@ -532,12 +514,13 @@ public:
 	}
 };
 
+template <class message_t>
 class RingBuffer
 {
 private:
 
 	int head, tail, storedMessages;
-	Message buffer[MESSAGE_QUEUE_SIZE];
+	message_t buffer[MESSAGE_QUEUE_SIZE];
 
 public:
 
@@ -546,7 +529,7 @@ public:
 		head = tail = storedMessages = 0;
 	}
 
-	int addMessage(Message newMessage)
+	int addMessage(message_t newMessage)
 	{
 
 		if(storedMessages < MESSAGE_QUEUE_SIZE)
@@ -566,33 +549,28 @@ public:
 
 		} else
 		{
-			std::cout << "Unable to add message to queue: No remaining space." << std::endl;
+			std::cout << "Unable to add message to buffer, No remaining space." << std::endl;
 			return 1;
 		}
 	}
 
-	Message getMessage()
+	message_t getMessage()
 	{
-		if(head != tail)
+		if(storedMessages != 0)
 		{
+			storedMessages -= 1;
 			if(head < MESSAGE_QUEUE_SIZE)
 			{
 				head += 1;
+				return buffer[head-1];
 			} else
 			{
 				head = 0;
+				return buffer[head];
 			}
-
-			if(storedMessages != 0)
-			{
-				storedMessages -= 1;
-			}
-			return buffer[head-1];
-
-
 		} else
 		{
-			return Message(NONE,"NULL");
+			throw std::range_error("No message in buffer to return.");
 		}
 	}
 
@@ -633,6 +611,7 @@ MathVector projectPointOntoLine(MathVector point, MathVector vertex1, MathVector
 
 int main()
 {
+
 	//Perform initialization
 	sf::RenderWindow window(sf::VideoMode(600, 600), "WIP SFML Game Engine");
 	sf::Texture textures[TEXTURE_ARRAY_SIZE];
@@ -644,16 +623,7 @@ int main()
 
 	loadTexture(textures, 1, "textures/background.png");
 	backgroundSprite.setTexture(textures[1]);
-/*	tempObject = new GameObject();
-	gameObjectsArray.push_back(tempObject);
-	loadTexture(textures, 0,"textures/square.png");
-	tempObject->addGraphicsComponent(new BasicSpriteComponent(&textures[0]));
-	tempObject->addInputComponent(new PlayerInputComponent());
-	tempObject->addPhysicsComponent(new PlayerPhysicsComponent());
 
-	tempObject->getPhysicsComponent(0)->setX(10);
-	tempObject->getPhysicsComponent(0)->setY(50);
-*/
 	std::vector<MathVector> testVector;
 	testVector.push_back(MathVector(40,90));
 	testVector.push_back(MathVector(40,50));
@@ -713,9 +683,10 @@ int main()
 		window.display();
 	}
 
-//	Dummied out code for testing the ring buffer
 /*
-	RingBuffer testBuffer;
+//	Dummied out code for testing the ring buffer
+
+	RingBuffer<Message> testBuffer;
 	std::string testString, firstWord, messageSubstring;
 	std::size_t foundLocation;
 	Message testMessage;
@@ -742,10 +713,20 @@ int main()
 
 		if(!firstWord.compare("get") && foundLocation == std::string::npos)
 		{
-			std::cout << testBuffer.getMessage().getContents() << std::endl;
+			try
+			{
+				testMessage = testBuffer.getMessage();
+				std::cout << testMessage.getContents() << std::endl;
+			}
+			catch (std::exception& e)
+			{
+				std::cout << "Exception caught: " << std::endl;
+				std::cout << e.what() <<std::endl;
+			}
 		}
 
 	}
 */
+
     return 0;
 }
