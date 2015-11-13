@@ -6,9 +6,9 @@
 #include "mathvector.h"
 #include "collision.h"
 
-#define TEXTURE_ARRAY_SIZE 150
-#define OBJECT_ARRAY_SIZE 150
-#define MESSAGE_QUEUE_SIZE 150
+const int TEXTURE_ARRAY_SIZE = 150;
+const int OBJECT_ARRAY_SIZE = 150;
+const int MESSAGE_QUEUE_SIZE = 150;
 
 class GameObject;
 
