@@ -2,7 +2,7 @@
 #include "mathvector.h"
 #include <limits>
 
-#define TOLERANCE 0.00001
+const double TOLERANCE 0.00001;
 
 struct Edge_t
 {
